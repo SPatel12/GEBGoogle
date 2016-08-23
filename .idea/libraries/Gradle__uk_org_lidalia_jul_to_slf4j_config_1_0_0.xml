@@ -1,0 +1,11 @@
+<component name="libraryTable">
+  <library name="Gradle: uk.org.lidalia:jul-to-slf4j-config:1.0.0">
+    <CLASSES>
+      <root url="jar://$USER_HOME$/.gradle/caches/modules-2/files-2.1/uk.org.lidalia/jul-to-slf4j-config/1.0.0/1c9b59f6ce5556663b5d8354ee2f81d5b05872f3/jul-to-slf4j-config-1.0.0.jar!/" />
+    </CLASSES>
+    <JAVADOC />
+    <SOURCES>
+      <root url="jar://$USER_HOME$/.gradle/caches/modules-2/files-2.1/uk.org.lidalia/jul-to-slf4j-config/1.0.0/9e85cf8e4090b337c06d0c437f89c4caf7ebc5ca/jul-to-slf4j-config-1.0.0-sources.jar!/" />
+    </SOURCES>
+  </library>
+</component>

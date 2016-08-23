@@ -1,0 +1,11 @@
+<component name="libraryTable">
+  <library name="Gradle: com.spotify:docker-client:5.0.2">
+    <CLASSES>
+      <root url="jar://$USER_HOME$/.gradle/caches/modules-2/files-2.1/com.spotify/docker-client/5.0.2/5ab4462e7e656757061fb15f129d1d0ad9fec1b8/docker-client-5.0.2.jar!/" />
+    </CLASSES>
+    <JAVADOC />
+    <SOURCES>
+      <root url="jar://$USER_HOME$/.gradle/caches/modules-2/files-2.1/com.spotify/docker-client/5.0.2/d4fd41416a021f8e3e0e349c764224a82eedebd2/docker-client-5.0.2-sources.jar!/" />
+    </SOURCES>
+  </library>
+</component>

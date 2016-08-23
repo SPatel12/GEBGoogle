@@ -1,0 +1,199 @@
+import java.time.Instant
+import static java.lang.System.getenv
+
+group 'uw.com'
+version '1.0-SNAPSHOT'
+
+/*ext {
+    // The drivers we want to use
+    drivers = ["firefox", "chrome"]
+
+}*/
+
+task wrapper(type: Wrapper) {
+    gradleVersion = '2.14'
+    distributionUrl = "https://services.gradle.org/distributions/gradle-$GradleVersion-all.zip"
+}
+
+apply plugin: 'groovy'
+
+targetCompatibility = 1.8
+sourceCompatibility = 1.8
+
+repositories {
+    mavenCentral()
+}
+
+def versions = [
+        dropwizard: '0.9.3'
+]
+
+dependencies {
+
+    compile 'org.codehaus.groovy:groovy-all:2.4.7'
+    compile "io.dropwizard:dropwizard-core:${versions.dropwizard}"
+    compile 'com.google.guava:guava:19.0'
+    compile 'commons-net:commons-net:3.5'
+    compile('jcifs:jcifs:1.3.17') {
+        exclude group: 'javax.servlet'
+    }
+    compile 'uk.org.lidalia:application-logging-dependencies:1.3.0'
+    compile 'org.apache.commons:commons-csv:1.4'
+    compile 'io.dropwizard.metrics:metrics-parent:3.1.2'
+    compile 'io.dropwizard.metrics:metrics-servlet:3.1.2'
+
+    testCompile "org.gebish:geb-spock:0.9.2"
+    compile "org.seleniumhq.selenium:selenium-firefox-driver:3.0.0-beta2"
+    compile "org.seleniumhq.selenium:selenium-support:3.0.0-beta2"
+    testCompile "org.seleniumhq.selenium:selenium-chrome-driver:3.0.0-beta2"
+    testCompile "org.seleniumhq.selenium:selenium-firefox-driver:3.0.0-beta2"
+
+
+
+    testCompile 'org.spockframework:spock-core:1.1-groovy-2.4-rc-1'
+    testCompile "io.dropwizard:dropwizard-testing:${versions.dropwizard}"
+    testCompile "io.dropwizard:dropwizard-client:${versions.dropwizard}"
+    testCompile 'com.spotify:docker-client:5.0.2'
+    testCompile('org.apache.ftpserver:ftpserver:1.0.6') {
+        exclude group: 'org.slf4j', module: 'slf4j-log4j12'
+    }
+
+    testCompile 'cglib:cglib-nodep:3.2.4'
+
+
+}
+
+compileGroovy {
+    groovyOptions.configurationScript = file("${rootDir.absolutePath}/compileStatic.groovy")
+}
+
+compileTestGroovy {
+    groovyOptions.configurationScript = file("${rootDir.absolutePath}/compileStatic.groovy")
+}
+/*
+drivers.each { driver ->
+    task "${driver}Test"(type: Test) {
+        reports {
+            html.destination = reporting.file("$name/tests")
+            junitXml.destination = file("$buildDir/test-results/$name")
+        }
+
+        outputs.upToDateWhen { false }  // Always run tests
+
+        systemProperty "geb.build.reportsDir", reporting.file("$name/geb")
+        systemProperty "geb.env", driver
+
+        // If you wanted to set the baseUrl in your build…
+        // systemProperty "geb.build.baseUrl", "http://myapp.com"
+    }
+}
+chromeTest {
+    dependsOn unzipChromeDriver
+
+    def chromedriverFilename = Os.isFamily(Os.FAMILY_WINDOWS) ? "chromedriver.exe" : "chromedriver"
+    systemProperty "webdriver.chrome.driver", new File(unzipChromeDriver.outputs.files.singleFile, chromedriverFilename).absolutePath
+}
+
+
+test {
+    dependsOn drivers.collect { tasks["${it}Test"] }
+    enabled = false
+}
+*/
+
+processResources.doLast {
+
+    copy {
+        from 'src/main/resources/config/version-info-template.json'
+        into "$buildDir/resources/main/config"
+        rename { fileName ->
+            fileName.replace('-template', '')
+        }
+        expand(
+                git_commit: getenv('CIRCLE_SHA1') ?: 'N/A',
+                git_tag: buildCiTagVersion() ?: 'N/A',
+                git_branch: getenv('CIRCLE_BRANCH') ?: 'N/A',
+                build_time: Instant.now().toString()
+        )
+    }
+}
+
+task prepareJars {
+    dependsOn Jar
+    doLast {
+        copy {
+            into "build/libs/deps"
+            from configurations.runtime
+        }
+    }
+}
+
+def dockerRepository = 'docker.dev.uw.systems/core_services'
+def dockerAppName = "uw-${rootProject.name}"
+def buildTag = buildCiTagVersion()
+
+
+task buildDocker {
+    doLast {
+        exec {
+            commandLine 'docker', 'build', '-t', "$dockerRepository/$dockerAppName:latest",'.'
+        }
+        if (buildTag) {
+            exec {
+                commandLine 'docker', 'tag', "$dockerRepository/$dockerAppName:latest", "$dockerRepository/$dockerAppName:$buildTag"
+            }
+        }
+    }
+
+    dependsOn prepareJars
+}
+
+task tagVersionControl {
+    doLast {
+        if (buildTag) {
+            exec {
+                commandLine 'git', 'tag', '-a', buildTag, '-m', "Built $buildTag on CI"
+            }
+            exec {
+                commandLine 'git', 'push', 'origin', buildTag
+            }
+        }
+    }
+}
+
+task checkDocker(type: Exec) {
+    commandLine 'docker', 'run', "$dockerRepository/$dockerAppName:latest", 'check'
+}
+
+build.dependsOn buildDocker, checkDocker, tagVersionControl
+
+private String buildCiTagVersion() {
+
+    def branch = getenv('CIRCLE_BRANCH')
+    def build = getenv('CIRCLE_BUILD_NUM')
+
+    if (branch && build) {
+        "$branch-$build"
+    } else {
+        null
+    }
+}
+
+task deploy {
+    doLast {
+        exec {
+            commandLine 'docker', 'push', "$dockerRepository/$dockerAppName:latest"
+        }
+        if (buildTag) {
+            exec {
+                commandLine 'docker', 'push', "$dockerRepository/$dockerAppName:$buildTag"
+            }
+        }
+    }
+}
+
+task downloadDependencies(type: Exec) {
+    configurations.testRuntime.files
+    commandLine 'echo', 'Downloaded all dependencies'
+}
+
